@@ -1,10 +1,13 @@
+import const
+
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi import Response
 from fastapi import status
+from fastapi.responses import StreamingResponse
 from service import Repo
 from service import RepoService
-import const
+
 
 
 app = FastAPI()
@@ -44,16 +47,13 @@ async def repo_info(repo_name: str, request: Request):
     body = await request.body()  # await request.stream.read()
     res = RepoService.repo_info(repo_name, body)
     content_type = f"application/x-git-upload-pack-result"
-    # todo 流式返回
-    return Response(content=res, media_type=content_type)
+    return StreamingResponse(content=res, media_type=content_type)
 
 
 @app.post("/{repo_name}/git-receive-pack")
 async def repo_update(repo_name: str, request: Request):
     # todo check if repo exists
-    # b'0098want 5cafe4b73ffd886a63a9cc56703c74ba458ab6f3 multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=git/2.33.0\n00000009done\n'
-    body = await request.body()  # await request.stream.read()
-    res = RepoService.update_repo(repo_name, body)
+    data = await request.body()  # await request.stream.read()
+    res = RepoService.update_repo(repo_name, data)
     content_type = f"application/x-git-receive-pack-result"
-    # todo 流式返回
-    return Response(content=res, media_type=content_type)
+    return StreamingResponse(content=res, media_type=content_type)

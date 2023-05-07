@@ -1,4 +1,7 @@
+import asyncio
 import subprocess
+from typing import Generator, Any, AsyncGenerator
+
 from pydantic import BaseModel
 import const
 
@@ -18,14 +21,36 @@ def exec_process(exec_str: str, data: bytes = None) -> bytes:
     # content_length = int(request.headers["Content-Length"])
     # input_data = request.stream.read(content_length)
     # input = None
+    print('exec_str', exec_str)
+    print('data', data)
     stdout, stderr = process.communicate(input=data)
     if process.returncode == 0:
-        print(stdout)
+        # print('output', stdout)
         return stdout
     else:
-        print(stderr.decode("utf-8"))
+        # print(stderr.decode("utf-8"))
         print(stdout)
         raise Exception(stderr.decode("utf-8"))
+
+
+def stream_exec_process(exec_str: str, data: bytes):
+    process = subprocess.Popen(
+        exec_str,
+        shell=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    # print('exec_str', exec_str)
+    # print('data', data)
+    process.stdin.write(data)
+    process.stdin.flush()
+    for line in iter(process.stdout.readline, b''):
+        yield line
+
+    ret_code = process.wait()
+    if ret_code != 0:
+        raise Exception(process.stderr.read().decode("utf-8"))
 
 
 class RepoService:
@@ -41,6 +66,12 @@ class RepoService:
 
     @classmethod
     def refs_info(cls, repo_name: str, git_command: str) -> str:
+        """
+        pkt-line格式的数据, 客户端需要验证第一首行的四个字符符合正则^[0-9a-f]{4}#，这里的四个字符是代表后面内容的长度
+        客户端需要验证第一行是# service=$servicename
+        服务端得保证每一行结尾需要包含一个LF换行符
+        服务端需要以0000标识结束本次请求响应
+        """
         smart_server_advert = f"# service={git_command}"
         content_path = f"{const.repo_root_path}/{repo_name}"
         exec_str = f"git {git_command[4:]} --stateless-rpc --advertise-refs {content_path}"
@@ -50,20 +81,20 @@ class RepoService:
         return res
 
     @staticmethod
-    def git_pack_command(git_command: str, repo_name: str, stream: bytes) -> bytes:
+    def git_pack_command(git_command: str, repo_name: str, stream: bytes) -> Generator[bytes, Any, Any]:
         content_path = f"{const.repo_root_path}/{repo_name}"
         exec_str = f"git {git_command[4:]} --stateless-rpc {content_path}"
-        res = exec_process(exec_str, stream)
+        res = stream_exec_process(exec_str, stream)
         return res
 
     @classmethod
-    def repo_info(cls, repo_name: str, stream: bytes) -> bytes:
+    def repo_info(cls, repo_name: str, stream: bytes) -> Generator[bytes, Any, Any]:
         git_command = "git-upload-pack"
         res = cls.git_pack_command(git_command, repo_name, stream)
         return res
 
     @classmethod
-    def update_repo(cls, repo_name: str, stream: bytes) -> bytes:
+    def update_repo(cls, repo_name: str, stream: bytes) -> Generator[bytes, Any, Any]:
         # git push 时触发
         git_command = "git-receive-pack"
         res = cls.git_pack_command(git_command, repo_name, stream)
