@@ -7,10 +7,24 @@ from fastapi import status
 from fastapi.responses import StreamingResponse
 from service import Repo
 from service import RepoService
+import models
+import schemas
+from database import SessionLocal, engine
 
-
+from sqlalchemy.orm import Session
+# 创建所有表, 注释掉, 用 alembic 来管理数据库迁移
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @app.get("/")
@@ -44,16 +58,17 @@ async def refs_info(repo_name: str, service: str):
 async def repo_info(repo_name: str, request: Request):
     # todo check if repo exists
     # b'0098want 5cafe4b73ffd886a63a9cc56703c74ba458ab6f3 multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=git/2.33.0\n00000009done\n'
-    body = await request.body()  # await request.stream.read()
+    body = await request.body()
     res = RepoService.repo_info(repo_name, body)
     content_type = f"application/x-git-upload-pack-result"
+    print(res)
     return StreamingResponse(content=res, media_type=content_type)
 
 
 @app.post("/{repo_name}/git-receive-pack")
 async def repo_update(repo_name: str, request: Request):
     # todo check if repo exists
-    data = await request.body()  # await request.stream.read()
+    data = await request.body()
     res = RepoService.update_repo(repo_name, data)
     content_type = f"application/x-git-receive-pack-result"
     return StreamingResponse(content=res, media_type=content_type)
