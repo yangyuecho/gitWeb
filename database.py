@@ -11,9 +11,11 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///db.sqlite3"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-) # connect_args={"check_same_thread": False}  仅用于SQLite
+)
+# connect_args={"check_same_thread": False}  仅用于SQLite
 # 数据库会话类
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 # 将用这个类继承，来创建每个数据库模型或类（ORM 模型）的基类
 # Base = declarative_base()

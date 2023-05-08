@@ -1,13 +1,12 @@
 import asyncio
 import subprocess
-from typing import Generator, Any, AsyncGenerator
-
-from pydantic import BaseModel
+from typing import Generator
+from typing import Any
+from typing import Union
+import schemas
+import models
 import const
-
-
-class Repo(BaseModel):
-    name: str
+from sqlalchemy.orm import Session
 
 
 def exec_process(exec_str: str, data: bytes = None) -> bytes:
@@ -55,14 +54,28 @@ def stream_exec_process(exec_str: str, data: bytes):
 
 class RepoService:
     @classmethod
-    def create_new_repo(cls, repo: Repo):
+    def check_same_path_repo(cls, db: Session, path: str) -> bool:
+        # 查询是否有相同 path 的 repo
+        return db.query(models.Repo).filter(models.Repo.path == path).first() is not None
+
+    @classmethod
+    def create_new_repo(cls, db: Session, repo: schemas.RepoCreate) -> Union[models.Repo, Exception]:
         # todo 写入数据库
         path = f"{const.repo_root_path}/{repo.name}.git"
+        repo.path = path
+        if cls.check_same_path_repo(db, path):
+            return Exception("repo already exists")
         exec_str_1 = f"mkdir {path}"
         m1 = exec_process(exec_str_1)
         exec_str_2 = f"git init --bare {path}"
         m2 = exec_process(exec_str_2)
         print(m1, m2)
+        db_item = models.Repo(**repo.dict())
+        db.add(db_item)
+        db.commit()
+        db.refresh(db_item)
+        return db_item
+
 
     @classmethod
     def refs_info(cls, repo_name: str, git_command: str) -> str:

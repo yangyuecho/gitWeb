@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi import Request
 from fastapi import Response
 from fastapi import status
+from fastapi import Depends
 from fastapi.responses import StreamingResponse
-from service import Repo
 from service import RepoService
 import models
 import schemas
@@ -37,10 +37,13 @@ async def say_hello(name: str):
     return {"message": f"Hello {name}"}
 
 
-@app.post("/api/repo")
-async def new_repo(repo: Repo):
-    RepoService.create_new_repo(repo)
-    return repo
+@app.post("/api/repo", response_model=schemas.Repo)
+async def new_repo(repo: schemas.RepoCreate, db: Session = Depends(get_db)):
+    res = RepoService.create_new_repo(db, repo)
+    if isinstance(res, Exception):
+        return Response(status_code=status.HTTP_400_BAD_REQUEST, content=str(res))
+    else:
+        return res
 
 
 @app.get("/{repo_name}/info/refs")
