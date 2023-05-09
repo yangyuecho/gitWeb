@@ -2,3 +2,4 @@ sqlalchemy
 alembic
 fastapi
 uvicorn
+pygit2
