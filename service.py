@@ -1,4 +1,3 @@
-import asyncio
 import subprocess
 from typing import Generator
 from typing import Any
@@ -7,6 +6,10 @@ import schemas
 import models
 import const
 from sqlalchemy.orm import Session
+from fastapi.security import HTTPBasicCredentials
+from typing import Annotated
+from fastapi import Depends
+from setup import security
 
 
 def exec_process(exec_str: str, data: bytes = None) -> bytes:
@@ -76,6 +79,32 @@ class RepoService:
         db.refresh(db_item)
         return db_item
 
+    @classmethod
+    def has_repo_auth(cls,
+                      db: Session,
+                      repo_name: str,
+                      credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+                      auth: str = "read") -> bool:
+        print(credentials.__dict__)
+        path = f"{const.repo_root_path}/{repo_name}"
+        repo = db.query(models.Repo).filter(models.Repo.path == path).first()
+        is_private = repo.is_private if repo else False
+        username = credentials.username
+        password = credentials.password
+        if is_private and username and password:
+            user = db.query(models.User).filter(models.User.username == username).first()
+            # todo 密码加盐
+            if user and user.hashed_password == password:
+                has_auth = db.query(models.RepoAuth)\
+                               .filter(models.RepoAuth.repo_id == repo.id,
+                                       models.RepoAuth.owner_id == user.id).first()
+                if has_auth:
+                    if auth == "read":
+                        return has_auth.readable
+                    elif auth == "write":
+                        return has_auth.writable
+            return False
+        return repo.is_private if repo else False
 
     @classmethod
     def refs_info(cls, repo_name: str, git_command: str) -> str:

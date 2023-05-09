@@ -1,5 +1,5 @@
 import const
-
+from typing import Annotated
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi import Response
@@ -9,32 +9,19 @@ from fastapi.responses import StreamingResponse
 from service import RepoService
 import models
 import schemas
-from database import SessionLocal, engine
+from fastapi.security import HTTPBasicCredentials
 
 from sqlalchemy.orm import Session
-# 创建所有表, 注释掉, 用 alembic 来管理数据库迁移
-# models.Base.metadata.create_all(bind=engine)
+
+from setup import security
+from setup import get_db
 
 app = FastAPI()
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
-
-
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
 
 
 @app.post("/api/repo", response_model=schemas.Repo)
@@ -47,8 +34,12 @@ async def new_repo(repo: schemas.RepoCreate, db: Session = Depends(get_db)):
 
 
 @app.get("/{repo_name}/info/refs")
-async def refs_info(repo_name: str, service: str):
-    # todo check if repo exists
+async def refs_info(repo_name: str,
+                    service: str,
+                    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+                    db: Session = Depends(get_db)):
+    if not RepoService.has_repo_auth(db, repo_name, credentials):
+        return Response(status_code=status.HTTP_401_UNAUTHORIZED)
     if service not in const.git_command:
         return Response(status_code=status.HTTP_405_METHOD_NOT_ALLOWED)
     res = RepoService.refs_info(repo_name, service)
@@ -59,18 +50,15 @@ async def refs_info(repo_name: str, service: str):
 
 @app.post("/{repo_name}/git-upload-pack")
 async def repo_info(repo_name: str, request: Request):
-    # todo check if repo exists
     # b'0098want 5cafe4b73ffd886a63a9cc56703c74ba458ab6f3 multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=git/2.33.0\n00000009done\n'
     body = await request.body()
     res = RepoService.repo_info(repo_name, body)
     content_type = f"application/x-git-upload-pack-result"
-    print(res)
     return StreamingResponse(content=res, media_type=content_type)
 
 
 @app.post("/{repo_name}/git-receive-pack")
 async def repo_update(repo_name: str, request: Request):
-    # todo check if repo exists
     data = await request.body()
     res = RepoService.update_repo(repo_name, data)
     content_type = f"application/x-git-receive-pack-result"
