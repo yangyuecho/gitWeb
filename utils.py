@@ -23,7 +23,7 @@ class GitRepo:
         self.head = self.repo.head
         self.cur_commit = self.repo[self.head.target]
 
-    def tree(self, commit: pygit2.Commit = None) -> t.List[GitEntity]:
+    def tree(self, commit: pygit2.Commit = None, deep=False) -> t.List[GitEntity]:
         if commit is None:
             commit = self.cur_commit
         return self.dir_content(commit.tree, '', deep=True)

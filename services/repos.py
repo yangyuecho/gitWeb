@@ -54,6 +54,13 @@ def stream_exec_process(exec_str: str, data: bytes):
 
 class RepoService:
     @classmethod
+    def find_by_id(cls, db: Session, repo_id: int) -> t.Union[models.Repo, Exception]:
+        repo = db.query(models.Repo).filter(models.Repo.id == repo_id).first()
+        if repo is None:
+            return Exception("repo not found")
+        return repo
+
+    @classmethod
     def check_same_path_repo(cls, db: Session, path: str) -> bool:
         # 查询是否有相同 path 的 repo
         return db.query(models.Repo).filter(models.Repo.path == path).first() is not None

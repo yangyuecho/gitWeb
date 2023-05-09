@@ -1,31 +1,37 @@
 from pydantic import BaseModel
-from typing import Optional
+import typing as t
+from datetime import datetime
 
 
 class Message(BaseModel):
     message: str
 
 
+class DBBase(BaseModel):
+    id: int
+    create_at: datetime
+    update_at: datetime
+
+
 class RepoBase(BaseModel):
     name: str
-    path: Optional[str] = None
-    is_private: Optional[bool] = False
-    owner_id: Optional[int] = None
+    path: t.Optional[str] = None
+    is_private: t.Optional[bool] = False
+    owner_id: t.Optional[int] = None
 
 
 class RepoCreate(RepoBase):
     pass
 
 
-class Repo(RepoBase):
-    id: int
+class Repo(DBBase, RepoBase):
+    pass
 
     class Config:
         orm_mode = True
 
 
-class User(BaseModel):
-    id: int
+class User(DBBase):
     username: str
     is_active: bool
 
