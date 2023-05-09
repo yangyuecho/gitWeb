@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from fastapi.security import HTTPBasicCredentials
 from typing import Annotated
 from fastapi import Depends
-from setup import security
+from dependencies import security
 
 
 def exec_process(exec_str: str, data: bytes = None) -> bytes:

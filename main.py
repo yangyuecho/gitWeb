@@ -1,5 +1,7 @@
 import const
+import routers as r
 from typing import Annotated
+from typing import List
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi import Response
@@ -7,30 +9,24 @@ from fastapi import status
 from fastapi import Depends
 from fastapi.responses import StreamingResponse
 from service import RepoService
-import models
-import schemas
+
 from fastapi.security import HTTPBasicCredentials
 
 from sqlalchemy.orm import Session
 
-from setup import security
-from setup import get_db
+from dependencies import security
+from dependencies import get_db
 
 app = FastAPI()
+
+
+app.include_router(r.repos.router)
+app.include_router(r.users.router)
 
 
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
-
-
-@app.post("/api/repo", response_model=schemas.Repo)
-async def new_repo(repo: schemas.RepoCreate, db: Session = Depends(get_db)):
-    res = RepoService.create_new_repo(db, repo)
-    if isinstance(res, Exception):
-        return Response(status_code=status.HTTP_400_BAD_REQUEST, content=str(res))
-    else:
-        return res
 
 
 @app.get("/{repo_name}/info/refs")

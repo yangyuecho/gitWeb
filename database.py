@@ -1,4 +1,3 @@
-from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative import as_declarative
 from sqlalchemy.ext.declarative import declared_attr
@@ -16,6 +15,9 @@ engine = create_engine(
 # 数据库会话类
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+from sqlalchemy.orm import Session
+# 创建所有表, 注释掉, 用 alembic 来管理数据库迁移
+# models.Base.metadata.create_all(bind=engine)
 
 # 将用这个类继承，来创建每个数据库模型或类（ORM 模型）的基类
 # Base = declarative_base()
