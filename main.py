@@ -1,14 +1,13 @@
 import const
 import routers as r
 from typing import Annotated
-from typing import List
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi import Response
 from fastapi import status
 from fastapi import Depends
 from fastapi.responses import StreamingResponse
-from service import RepoService
+from services.repos import RepoService
 
 from fastapi.security import HTTPBasicCredentials
 

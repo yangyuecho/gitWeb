@@ -2,6 +2,10 @@ from pydantic import BaseModel
 from typing import Optional
 
 
+class Message(BaseModel):
+    message: str
+
+
 class RepoBase(BaseModel):
     name: str
     path: Optional[str] = None
@@ -20,18 +24,15 @@ class Repo(RepoBase):
         orm_mode = True
 
 
-# class UserBase(BaseModel):
-#     email: str
-#
-#
-# class UserCreate(UserBase):
-#     password: str
-#
-#
-# class User(UserBase):
-#     id: int
-#     is_active: bool
-#     items: list[Item] = []
-#
-#     class Config:
-#         orm_mode = True
+class User(BaseModel):
+    id: int
+    username: str
+    is_active: bool
+
+    class Config:
+        orm_mode = True
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str

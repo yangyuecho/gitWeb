@@ -1,13 +1,10 @@
 import subprocess
-from typing import Generator
-from typing import Any
-from typing import Union
+import typing as t
 import schemas
 import models
 import const
 from sqlalchemy.orm import Session
 from fastapi.security import HTTPBasicCredentials
-from typing import Annotated
 from fastapi import Depends
 from dependencies import security
 
@@ -62,7 +59,11 @@ class RepoService:
         return db.query(models.Repo).filter(models.Repo.path == path).first() is not None
 
     @classmethod
-    def create_new_repo(cls, db: Session, repo: schemas.RepoCreate) -> Union[models.Repo, Exception]:
+    def repo_list(cls, db: Session) -> t.List[models.Repo]:
+        return db.query(models.Repo).all()
+
+    @classmethod
+    def create_new_repo(cls, db: Session, repo: schemas.RepoCreate) -> t.Union[models.Repo, Exception]:
         # todo 写入数据库
         path = f"{const.repo_root_path}/{repo.name}.git"
         repo.path = path
@@ -83,7 +84,7 @@ class RepoService:
     def has_repo_auth(cls,
                       db: Session,
                       repo_name: str,
-                      credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+                      credentials: t.Annotated[HTTPBasicCredentials, Depends(security)],
                       auth: str = "read") -> bool:
         print(credentials.__dict__)
         path = f"{const.repo_root_path}/{repo_name}"
@@ -123,20 +124,20 @@ class RepoService:
         return res
 
     @staticmethod
-    def git_pack_command(git_command: str, repo_name: str, stream: bytes) -> Generator[bytes, Any, Any]:
+    def git_pack_command(git_command: str, repo_name: str, stream: bytes) -> t.Generator[bytes, t.Any, t.Any]:
         content_path = f"{const.repo_root_path}/{repo_name}"
         exec_str = f"git {git_command[4:]} --stateless-rpc {content_path}"
         res = stream_exec_process(exec_str, stream)
         return res
 
     @classmethod
-    def repo_info(cls, repo_name: str, stream: bytes) -> Generator[bytes, Any, Any]:
+    def repo_info(cls, repo_name: str, stream: bytes) -> t.Generator[bytes, t.Any, t.Any]:
         git_command = "git-upload-pack"
         res = cls.git_pack_command(git_command, repo_name, stream)
         return res
 
     @classmethod
-    def update_repo(cls, repo_name: str, stream: bytes) -> Generator[bytes, Any, Any]:
+    def update_repo(cls, repo_name: str, stream: bytes) -> t.Generator[bytes, t.Any, t.Any]:
         # git push 时触发
         git_command = "git-receive-pack"
         res = cls.git_pack_command(git_command, repo_name, stream)
