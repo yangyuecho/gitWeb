@@ -12,6 +12,7 @@ class User(Base):
 class Repo(Base):
     name = Column(String, index=True)
     path = Column(String, index=True, unique=True)
+    unique_name = Column(String, index=True, unique=True)
     is_private = Column(Boolean, default=True)
     owner_id = Column(Integer, ForeignKey("user.id"))
 

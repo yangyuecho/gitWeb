@@ -26,7 +26,13 @@ class GitRepo:
     def tree(self, commit: pygit2.Commit = None, deep=False) -> t.List[GitEntity]:
         if commit is None:
             commit = self.cur_commit
-        return self.dir_content(commit.tree, '', deep=True)
+        return self.dir_content(commit.tree, '', deep=deep)
+
+    def find_dir_content(self, items, dir_path: str):
+        for i, e in enumerate(items):
+            if e.path == dir_path:
+                return items[i]
+
 
     def file_content(self, path: str, commit: pygit2.Commit = None) -> str:
         repo = self.repo
@@ -77,7 +83,7 @@ class GitRepo:
                 d = GitEntity(n, p)
                 d.type = GitEntityType.DIR.value
                 if deep:
-                    fs = cls.dir_content(e, p)
+                    fs = cls.dir_content(e, p, deep)
                     d.children = fs
                 res.append(d)
             else:

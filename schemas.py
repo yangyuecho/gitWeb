@@ -25,7 +25,7 @@ class RepoCreate(RepoBase):
 
 
 class Repo(DBBase, RepoBase):
-    pass
+    unique_name: t.Optional[str] = None
 
     class Config:
         orm_mode = True

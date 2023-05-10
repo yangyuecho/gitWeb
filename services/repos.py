@@ -61,6 +61,20 @@ class RepoService:
         return repo
 
     @classmethod
+    def find_by_path(cls, db: Session, path: str) -> t.Union[models.Repo, Exception]:
+        repo = db.query(models.Repo).filter(models.Repo.path == path).first()
+        if repo is None:
+            return Exception("repo not found")
+        return repo
+
+    @classmethod
+    def find_by_unique_name(cls, db: Session, unique_name: str) -> t.Union[models.Repo, Exception]:
+        repo = db.query(models.Repo).filter(models.Repo.unique_name == unique_name).first()
+        if repo is None:
+            return Exception("repo not found")
+        return repo
+
+    @classmethod
     def check_same_path_repo(cls, db: Session, path: str) -> bool:
         # 查询是否有相同 path 的 repo
         return db.query(models.Repo).filter(models.Repo.path == path).first() is not None

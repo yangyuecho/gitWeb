@@ -37,26 +37,40 @@ async def repo_list(db: Session = Depends(d.get_db),
     return res
 
 
-@router.get("/{repo_id}")
-async def repo_tree(repo_id: int,
-                    db: Session = Depends(d.get_db),
-                    current_user: models.User = Depends(d.get_current_active_user)):
-    repo = RepoService.find_by_id(db, repo_id)
-    if repo is None:
-        raise HTTPException(status_code=404, detail="Repo not found")
-    git_repo = GitRepo(repo.path)
-    return git_repo.tree()
+# @router.get("/{name}/")
+# async def repo_tree(name: str,
+#                     db: Session = Depends(d.get_db),
+#                     current_user: models.User = Depends(d.get_current_active_user)):
+#     repo = RepoService.find_by_unique_name(db, name)
+#     if repo is None:
+#         raise HTTPException(status_code=404, detail="Repo not found")
+#     print(repo)
+#     git_repo = GitRepo(repo.path)
+#     return git_repo.tree()
 
 
-@router.get("/{repo_id}/deferred-metadata/<branch>/<path>")
-async def repo_file_content(repo_id: int,
-                            branch: str,
-                            path: str,
+@router.get("/{name}/deferred-metadata/")
+async def repo_file_content(name: str,
+                            branch: t.Optional[str] = "main",
+                            path: t.Optional[str] = "/",
                             db: Session = Depends(d.get_db),
                             current_user: models.User = Depends(d.get_current_active_user)):
-    repo = RepoService.find_by_id(db, repo_id)
+    repo = RepoService.find_by_unique_name(db, name)
+    print(repo)
     if repo is None:
         raise HTTPException(status_code=404, detail="Repo not found")
     git_repo = GitRepo(repo.path)
     return git_repo.file_content(path)
 
+
+@router.get("/{name}/tree")
+async def repo_tree(name: str,
+                    branch: t.Optional[str] = "main",
+                    path: t.Optional[str] = "/",
+                    db: Session = Depends(d.get_db),
+                    current_user: models.User = Depends(d.get_current_active_user)):
+    repo = RepoService.find_by_unique_name(db, name)
+    if repo is None:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    git_repo = GitRepo(repo.path)
+    return git_repo.tree(deep=True)
