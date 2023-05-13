@@ -31,22 +31,11 @@ async def new_repo(repo: schemas.RepoCreate, db: Session = Depends(d.get_db)):
 
 @router.get("/", response_model=t.List[schemas.Repo], responses={404: {"model": schemas.Message}})
 async def repo_list(db: Session = Depends(d.get_db),
-                    current_user: models.User = Depends(d.get_current_active_user)):
+                    current_user: models.User = Depends(d.get_current_user_no_must)):
     print('current_user', current_user)
+    # todo auth
     res = RepoService.repo_list(db)
     return res
-
-
-# @router.get("/{name}/")
-# async def repo_tree(name: str,
-#                     db: Session = Depends(d.get_db),
-#                     current_user: models.User = Depends(d.get_current_active_user)):
-#     repo = RepoService.find_by_unique_name(db, name)
-#     if repo is None:
-#         raise HTTPException(status_code=404, detail="Repo not found")
-#     print(repo)
-#     git_repo = GitRepo(repo.path)
-#     return git_repo.tree()
 
 
 @router.get("/{name}/deferred-metadata/")

@@ -33,6 +33,12 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
     return user
 
 
+def get_current_user_no_must(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
+    # todo: check token
+    user = UserService.find_user_by_username(db, token) if token else None
+    return user
+
+
 async def get_current_active_user(current_user: models.User = Depends(get_current_user)):
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
