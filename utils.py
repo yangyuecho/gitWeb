@@ -56,7 +56,6 @@ class GitRepo:
             p = path + '/' + n if path else n
             is_dir = e.type_str == 'tree'
             # print('is_dir', is_dir)
-            # todo: 文件夹的最新提交还是有些问题, 文件夹嵌套的情况不对
             c = self.entity_latest_commit(p, commit, is_dir)
             # print(c.hex)
             d = {
@@ -196,7 +195,8 @@ class GitRepo:
                         # commit 是按新到旧的顺序遍历的, 所以返回的是最新的相关提交
                         # os.path.dirname('/a/b/c.txt') => '/a/b'
                         d = os.path.dirname(f)
-                        if d == path:
+                        # 文件夹用路径包含判断, 这样能让最外层文件夹获取到内层文件夹的改动
+                        if path in d:
                             return c
                     else:
                         if f == path:
