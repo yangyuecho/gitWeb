@@ -1,15 +1,19 @@
 import models
+import typing as t
 from database import SessionLocal
 from fastapi.security import HTTPBasic
-from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import status
 from services.users import UserService
 from sqlalchemy.orm import Session
 
+from fastapi.security import OAuth2PasswordBearer
+
 security = HTTPBasic()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/user/login")
+
+# auto_error 没有用户鉴权信息时是否报 401
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/user/login", auto_error=False)
 
 
 # Dependency

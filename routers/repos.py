@@ -40,26 +40,45 @@ async def repo_list(db: Session = Depends(d.get_db),
 
 @router.get("/{name}/deferred-metadata/")
 async def repo_file_content(name: str,
-                            branch: t.Optional[str] = "main",
-                            path: t.Optional[str] = "/",
+                            branch: t.Optional[str] = "",
+                            path: t.Optional[str] = "",
                             db: Session = Depends(d.get_db),
-                            current_user: models.User = Depends(d.get_current_active_user)):
+                            current_user: models.User = Depends(d.get_current_user_no_must)):
     repo = RepoService.find_by_unique_name(db, name)
-    print(repo)
     if repo is None:
         raise HTTPException(status_code=404, detail="Repo not found")
     git_repo = GitRepo(repo.path)
-    return git_repo.file_content(path)
+    # 获取指定分支的最后一个 commit 对象
+    commit = git_repo.newest_commit_by_branch(branch)
+    return git_repo.file_content_by_path(path, commit=commit)
 
 
-@router.get("/{name}/tree")
+@router.get("/{name}/tree/")
 async def repo_tree(name: str,
-                    branch: t.Optional[str] = "main",
-                    path: t.Optional[str] = "/",
+                    branch: t.Optional[str] = "",
+                    path: t.Optional[str] = "",
                     db: Session = Depends(d.get_db),
-                    current_user: models.User = Depends(d.get_current_active_user)):
+                    current_user: models.User = Depends(d.get_current_user_no_must)):
     repo = RepoService.find_by_unique_name(db, name)
     if repo is None:
         raise HTTPException(status_code=404, detail="Repo not found")
     git_repo = GitRepo(repo.path)
-    return git_repo.tree(deep=True)
+    # 获取指定分支的最后一个 commit 对象
+    print('branch', branch)
+    print('path', path)
+    commit = git_repo.newest_commit_by_branch(branch)
+    return git_repo.dir_content_by_path(path=path, commit=commit)
+
+
+@router.get("/{name}/commits")
+async def repo_commits(name: str,
+                    branch: t.Optional[str] = "",
+                    db: Session = Depends(d.get_db),
+                    current_user: models.User = Depends(d.get_current_user_no_must),):
+    repo = RepoService.find_by_unique_name(db, name)
+    if repo is None:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    git_repo = GitRepo(repo.path)
+    # 获取指定分支的最后一个 commit 对象
+    commit = git_repo.newest_commit_by_branch(branch)
+    return git_repo.all_commits(commit=commit)
