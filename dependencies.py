@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from fastapi.security import OAuth2PasswordBearer
 
-security = HTTPBasic()
+security = HTTPBasic(auto_error=False)
 
 # auto_error 没有用户鉴权信息时是否报 401
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/user/login", auto_error=False)

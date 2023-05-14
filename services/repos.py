@@ -107,12 +107,11 @@ class RepoService:
                       repo_name: str,
                       credentials: t.Annotated[HTTPBasicCredentials, Depends(security)],
                       auth: str = "read") -> bool:
-        print(credentials.__dict__)
         path = f"{const.repo_root_path}/{repo_name}"
         repo = db.query(models.Repo).filter(models.Repo.path == path).first()
         is_private = repo.is_private if repo else False
-        username = credentials.username
-        password = credentials.password
+        username = credentials.username if credentials else None
+        password = credentials.password if credentials else None
         if is_private and username and password:
             user = db.query(models.User).filter(models.User.username == username).first()
             # todo 密码加盐
@@ -126,7 +125,7 @@ class RepoService:
                     elif auth == "write":
                         return has_auth.writable
             return False
-        return repo.is_private if repo else False
+        return not repo.is_private if repo else False
 
     @classmethod
     def refs_info(cls, repo_name: str, git_command: str) -> str:

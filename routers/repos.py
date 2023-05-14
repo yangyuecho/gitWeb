@@ -64,8 +64,8 @@ async def repo_tree(name: str,
         raise HTTPException(status_code=404, detail="Repo not found")
     git_repo = GitRepo(repo.path)
     # 获取指定分支的最后一个 commit 对象
-    print('branch', branch)
-    print('path', path)
+    # print('branch', branch)
+    # print('path', path)
     commit = git_repo.newest_commit_by_branch(branch)
     return git_repo.dir_content_by_path(path=path, commit=commit)
 

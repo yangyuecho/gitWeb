@@ -1,4 +1,5 @@
 import json
+import os
 import pygit2
 import typing as t
 from datetime import datetime
@@ -6,15 +7,18 @@ from const import GitEntityType
 
 
 class GitEntity:
-    def __init__(self, name, path, oid):
+    def __init__(self, name, path, oid, **kwargs):
         self.name: str = name
         self.path: str = path
-        self.type: str = GitEntityType.FILE.value
+        self.type: str = GitEntityType.DIR.value if kwargs.get('is_dir', False) else GitEntityType.FILE.value
         self.children: t.Optional[t.List[GitEntity]] = None
         self.oid = str(oid)
+        self.commit_id = kwargs.get('commit_id')
+        self.commit_message = kwargs.get('commit_message')
+        self.commit_time = kwargs.get('commit_time')
 
     def __repr__(self):
-        return f"<{self.type} {self.path} {len(self.children) if self.children else None}>"
+        return f"<{self.__dict__}>"
 
 
 class GitRepo:
@@ -29,9 +33,10 @@ class GitRepo:
             commit = self.cur_commit
         return self.dir_content(commit.tree, '')
 
-    def newest_commit_by_branch(self, branch: str = "") -> pygit2.Commit:
-        if branch:
-            return self.repo.revparse_single(branch)
+    def newest_commit_by_branch(self, branch_name: str = "") -> pygit2.Commit:
+        if branch_name:
+            branch = self.repo.branches[branch_name]
+            return branch.peel()
         return self.cur_commit
 
     def revparse_single(self, branch: str) -> pygit2.Commit:
@@ -40,6 +45,7 @@ class GitRepo:
     def dir_content_by_path(self, path: str = "", commit: pygit2.Commit = None) -> t.List[GitEntity]:
         if commit is None:
             commit = self.cur_commit
+        # print('commit', commit, commit.commit_time)
         # path = "" 时是根目录  'path/to/directory'
         tree = commit.tree
         res = []
@@ -48,18 +54,23 @@ class GitRepo:
         for e in tree:
             n = e.name
             p = path + '/' + n if path else n
-            if e.type_str == 'blob':
-                # 如果是文件
-                f = GitEntity(n, p, e.oid)
-                res.append(f)
-            elif e.type_str == 'tree':
-                # 如果是文件夹
-                e: pygit2.Tree
-                # 递归地处理下一级文件
-                # 最终是拼成一个树状结构
-                d = GitEntity(n, p, e.oid)
-                d.type = GitEntityType.DIR.value
-                res.append(d)
+            is_dir = e.type_str == 'tree'
+            # print('is_dir', is_dir)
+            # todo: 文件夹的最新提交还是有些问题, 文件夹嵌套的情况不对
+            c = self.entity_latest_commit(p, commit, is_dir)
+            # print(c.hex)
+            d = {
+                'name': n,
+                'path': p,
+                'oid': e.oid,
+                'is_dir': is_dir,
+                'commit_id': c.hex,
+                'commit_message': c.message,
+                'commit_time': datetime.fromtimestamp(
+                    c.commit_time).strftime('%Y-%m-%d %H:%M:%S'),
+            }
+            f = GitEntity(**d)
+            res.append(f)
         return res
 
     def file_content_by_path(self, path: str, commit: pygit2.Commit = None) -> str:
@@ -140,7 +151,7 @@ class GitRepo:
         commits = []
         cur_commit = []
         # 从给定提交开始遍历历史记录
-        for c in self.repo.walk(commit, pygit2.GIT_SORT_NONE):  # 使用与 git 相同的默认方法对输出进行排序：反向时间顺序。
+        for c in self.repo.walk(commit.oid, pygit2.GIT_SORT_NONE):  # 使用与 git 相同的默认方法对输出进行排序：反向时间顺序。
             data = {
                 'hash': c.hex,
                 'message': c.message,
@@ -149,24 +160,60 @@ class GitRepo:
                 'author_name': c.author.name,
                 'author_email': c.author.email,
                 'parents': [c.hex for c in c.parents],
+                'oid': commit.oid,
             }
             commits.append(data)
             if c == commit:
                 cur_commit = data
         return {"cur_commit": cur_commit, "commits": commits}
 
+    # 文件或文件夹的最新提交记录
+    def entity_latest_commit(self, path: str, commit: pygit2.Commit = None, is_dir: bool = False) -> pygit2.Commit:
+        if commit is None:
+            commit = self.cur_commit
+        # 按照时间顺序获取 commit 列表, commit 的顺序 git log 命令输出的一致, 最新的 commit 在最前
+        # walker 可以看作类似元素为 pygit2.Commit 对象的列表
+        walker = self.repo.walk(commit.id, pygit2.GIT_SORT_TIME)
+        for c in walker:
+            # 获取父提交
+            parent_ids = c.parent_ids
+            # 假设使用了 git merge 命令合并过分支, 合并分支时创建的提交可能会有多个父提交
+            for pid in parent_ids:
+                parent = self.repo[pid]
+                assert isinstance(parent, pygit2.Commit)
+                # 相当于命令 git diff parent.hex commit.hex
+                diff = self.repo.diff(parent, commit)
+                assert isinstance(diff, pygit2.Diff)
+                for patch in diff:
+                    # 遍历的是所有修改的内容, 都是文件
+                    assert isinstance(patch, pygit2.Patch)
+                    # 获取改动的文件的路径
+                    f = patch.delta.new_file.path
+                    print(f, c.hex, path)
+                    # 如果传入的文件路径和改动的路径相等, 说明当前的 commit 和它的 parent commit 相比, 这个文件发生了改动
+                    if is_dir:
+                        # 如果是文件夹, 则通过文件, 则算出对应的文件夹路径, 然后判断是否相等
+                        # commit 是按新到旧的顺序遍历的, 所以返回的是最新的相关提交
+                        # os.path.dirname('/a/b/c.txt') => '/a/b'
+                        d = os.path.dirname(f)
+                        if d == path:
+                            return c
+                    else:
+                        if f == path:
+                            return c
+
+        # 该文件有可能只在整个分支/标签的第一个 commit 改动过, 这种情况下没有 parent commit
+        return commit
+
 
 if __name__ == "__main__":
     repo_path = '/Users/dongzijuan/projects/gitWeb/data/axe.git'
     repo = GitRepo(repo_path)
-    res = repo.tree()
+    # res = repo.tree()
+    c = repo.entity_latest_commit('README.md', is_dir=False)
+    print('rr', c.hex, c.message)
     # repo.all_commits(None)
-    branches_list = list(repo.repo.branches)
-    print(branches_list)
-    print(repo.dir_content_by_path('folder'))
-    print(repo.file_content_by_path('folder/readme.md'))
-    # print(res)
-    # file = res[0]
-    # print('111', file, file.path)
-    # file_content_str = repo.file_content(file.path)
-    # print('2222', file_content_str)
+    # branches_list = list(repo.repo.branches)
+    # print(branches_list)
+    # print(repo.dir_content_by_path('folder'))
+    # print(repo.file_content_by_path('folder/readme.md'))
