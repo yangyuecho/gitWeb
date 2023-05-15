@@ -82,3 +82,14 @@ async def repo_commits(name: str,
     # 获取指定分支的最后一个 commit 对象
     commit = git_repo.newest_commit_by_branch(branch)
     return git_repo.all_commits(commit=commit)
+
+
+@router.get("/{name}/branches")
+async def repo_branches(name: str,
+                    db: Session = Depends(d.get_db),
+                    current_user: models.User = Depends(d.get_current_user_no_must),):
+    repo = RepoService.find_by_unique_name(db, name)
+    if repo is None:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    git_repo = GitRepo(repo.path)
+    return git_repo.all_branch_names()

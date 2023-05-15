@@ -142,7 +142,7 @@ class GitRepo:
         return res
 
     def all_branch_names(self) -> t.List[str]:
-        return self.repo.branches
+        return list(self.repo.branches)
 
     def all_commits(self, commit: pygit2.Commit = None) -> t.Dict[str, t.Any]:
         if commit is None:
@@ -159,7 +159,7 @@ class GitRepo:
                 'author_name': c.author.name,
                 'author_email': c.author.email,
                 'parents': [c.hex for c in c.parents],
-                'oid': commit.oid,
+                'oid': str(commit.oid),
             }
             commits.append(data)
             if c == commit:
@@ -209,9 +209,10 @@ class GitRepo:
 if __name__ == "__main__":
     repo_path = '/Users/dongzijuan/projects/gitWeb/data/axe.git'
     repo = GitRepo(repo_path)
+    print(repo.all_branch_names())
     # res = repo.tree()
-    c = repo.entity_latest_commit('README.md', is_dir=False)
-    print('rr', c.hex, c.message)
+    # c = repo.entity_latest_commit('README.md', is_dir=False)
+    # print('rr', c.hex, c.message)
     # repo.all_commits(None)
     # branches_list = list(repo.repo.branches)
     # print(branches_list)
