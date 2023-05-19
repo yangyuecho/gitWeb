@@ -56,6 +56,7 @@ async def repo_file_content(name: str,
 @router.get("/{name}/tree/")
 async def repo_tree(name: str,
                     branch: t.Optional[str] = "",
+                    commit: t.Optional[str] = "",
                     path: t.Optional[str] = "",
                     db: Session = Depends(d.get_db),
                     current_user: models.User = Depends(d.get_current_user_no_must)):
@@ -66,7 +67,10 @@ async def repo_tree(name: str,
     # 获取指定分支的最后一个 commit 对象
     # print('branch', branch)
     # print('path', path)
-    commit = git_repo.newest_commit_by_branch(branch)
+    if branch and not commit:
+        commit = git_repo.newest_commit_by_branch(branch)
+    elif commit:
+        commit = git_repo.repo.revparse_single(commit)
     return git_repo.dir_content_by_path(path=path, commit=commit)
 
 
@@ -92,4 +96,4 @@ async def repo_branches(name: str,
     if repo is None:
         raise HTTPException(status_code=404, detail="Repo not found")
     git_repo = GitRepo(repo.path)
-    return git_repo.all_branch_names()
+    return git_repo.all_branch()

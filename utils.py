@@ -141,20 +141,27 @@ class GitRepo:
                 raise Exception('unknown type ({})'.format(e.type_str))
         return res
 
-    def all_branch_names(self) -> t.List[str]:
-        return list(self.repo.branches)
+    def all_branch(self) -> t.List[t.Dict]:
+        res = []
+        for branch_name in self.repo.branches:
+            b = self.repo.branches[branch_name]
+            res.append({
+                'name': b.branch_name,
+                'is_head': b.is_head(),
+                'is_checked_out': b.is_checked_out(),
+            })
+        return res
 
     def all_commits(self, commit: pygit2.Commit = None) -> t.Dict[str, t.Any]:
         if commit is None:
             commit = self.cur_commit
         commits = []
-        cur_commit = []
         # 从给定提交开始遍历历史记录
         for c in self.repo.walk(commit.oid, pygit2.GIT_SORT_NONE):  # 使用与 git 相同的默认方法对输出进行排序：反向时间顺序。
             data = {
                 'hash': c.hex,
                 'message': c.message,
-                'commit_date': datetime.utcfromtimestamp(
+                'commit_time': datetime.utcfromtimestamp(
                     c.commit_time).strftime('%Y-%m-%d %H:%M:%S'),
                 'author_name': c.author.name,
                 'author_email': c.author.email,
@@ -162,9 +169,7 @@ class GitRepo:
                 'oid': str(commit.oid),
             }
             commits.append(data)
-            if c == commit:
-                cur_commit = data
-        return {"cur_commit": cur_commit, "commits": commits}
+        return {"commits": commits}
 
     # 文件或文件夹的最新提交记录
     def entity_latest_commit(self, path: str, commit: pygit2.Commit = None, is_dir: bool = False) -> pygit2.Commit:
@@ -209,7 +214,7 @@ class GitRepo:
 if __name__ == "__main__":
     repo_path = '/Users/dongzijuan/projects/gitWeb/data/axe.git'
     repo = GitRepo(repo_path)
-    print(repo.all_branch_names())
+    print(repo.all_branch())
     # res = repo.tree()
     # c = repo.entity_latest_commit('README.md', is_dir=False)
     # print('rr', c.hex, c.message)
