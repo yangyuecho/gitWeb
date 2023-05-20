@@ -57,6 +57,7 @@ async def repo_file_content(name: str,
 async def repo_tree(name: str,
                     branch: t.Optional[str] = "",
                     commit: t.Optional[str] = "",
+                    tag: t.Optional[str] = "",
                     path: t.Optional[str] = "",
                     db: Session = Depends(d.get_db),
                     current_user: models.User = Depends(d.get_current_user_no_must)):
@@ -67,7 +68,9 @@ async def repo_tree(name: str,
     # 获取指定分支的最后一个 commit 对象
     # print('branch', branch)
     # print('path', path)
-    if branch and not commit:
+    if tag:
+        commit = git_repo.repo.revparse_single(tag)
+    elif branch and not commit:
         commit = git_repo.newest_commit_by_branch(branch)
     elif commit:
         commit = git_repo.repo.revparse_single(commit)
@@ -97,6 +100,17 @@ async def repo_branches(name: str,
         raise HTTPException(status_code=404, detail="Repo not found")
     git_repo = GitRepo(repo.path)
     return git_repo.all_branch()
+
+
+@router.get("/{name}/tags")
+async def repo_branches(name: str,
+                    db: Session = Depends(d.get_db),
+                    current_user: models.User = Depends(d.get_current_user_no_must),):
+    repo = RepoService.find_by_unique_name(db, name)
+    if repo is None:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    git_repo = GitRepo(repo.path)
+    return git_repo.all_tags()
 
 
 @router.get("/{name}/diff/")

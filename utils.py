@@ -1,4 +1,4 @@
-import json
+import re
 import os
 import pygit2
 import typing as t
@@ -171,6 +171,26 @@ class GitRepo:
             commits.append(data)
         return {"commits": commits}
 
+    def all_tags(self):
+        regex = re.compile('^refs/tags/')
+        tags = [r.split('/')[-1] for r in self.repo.references if regex.match(r)]
+        res = []
+        for tag in tags:
+            c = self.repo.revparse_single(tag)
+            data = {
+                'hash': c.hex,
+                'message': c.message,
+                'commit_time': datetime.utcfromtimestamp(
+                    c.commit_time).strftime('%Y-%m-%d %H:%M:%S'),
+                'author_name': c.author.name,
+                'author_email': c.author.email,
+                'parents': [c.hex for c in c.parents],
+                'oid': str(c.oid),
+                'tag': tag,
+            }
+            res.append(data)
+        return res
+
     # 文件或文件夹的最新提交记录
     def entity_latest_commit(self, path: str, commit: pygit2.Commit = None, is_dir: bool = False) -> pygit2.Commit:
         if commit is None:
@@ -193,7 +213,7 @@ class GitRepo:
                     assert isinstance(patch, pygit2.Patch)
                     # 获取改动的文件的路径
                     f = patch.delta.new_file.path
-                    print(f, c.hex, path)
+                    # print(f, c.hex, path)
                     # 如果传入的文件路径和改动的路径相等, 说明当前的 commit 和它的 parent commit 相比, 这个文件发生了改动
                     if is_dir:
                         # 如果是文件夹, 则通过文件, 则算出对应的文件夹路径, 然后判断是否相等
@@ -228,7 +248,9 @@ class GitRepo:
 if __name__ == "__main__":
     repo_path = '/Users/dongzijuan/projects/gitWeb/data/axe.git'
     repo = GitRepo(repo_path)
-    print(repo.diff_by_commit())
+    # print(repo.all_tags())
+    tag = repo.repo.revparse_single('v2.0.0')
+    # print(tag.hex, tag.commit_time)
     # res = repo.tree()
     # c = repo.entity_latest_commit('README.md', is_dir=False)
     # print('rr', c.hex, c.message)
