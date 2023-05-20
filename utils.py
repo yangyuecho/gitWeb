@@ -210,11 +210,25 @@ class GitRepo:
         # 该文件有可能只在整个分支/标签的第一个 commit 改动过, 这种情况下没有 parent commit
         return commit
 
+    def diff_by_commit(self, commit: pygit2.Commit = None) -> str:
+        if commit is None:
+            commit = self.cur_commit
+        # print('111', commit.hex, commit.parent_ids)
+        for pid in commit.parent_ids:
+            parent = self.repo[pid]
+            assert isinstance(parent, pygit2.Commit)
+            # 相当于命令 git diff parent.hex commit.hex
+            diff = self.repo.diff(parent, commit)
+            diff_string = diff.patch
+            if diff_string:
+                return diff_string
+        return ""
+
 
 if __name__ == "__main__":
     repo_path = '/Users/dongzijuan/projects/gitWeb/data/axe.git'
     repo = GitRepo(repo_path)
-    print(repo.all_branch())
+    print(repo.diff_by_commit())
     # res = repo.tree()
     # c = repo.entity_latest_commit('README.md', is_dir=False)
     # print('rr', c.hex, c.message)
