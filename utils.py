@@ -166,9 +166,39 @@ class GitRepo:
                 'author_name': c.author.name,
                 'author_email': c.author.email,
                 'parents': [c.hex for c in c.parents],
-                'oid': str(commit.oid),
+                'oid': str(c.oid),
             }
             commits.append(data)
+        return {"commits": commits}
+
+    def compare_commits(self, base: str, compare: str) -> t.Dict[str, t.Any]:
+        base_commit = self.get_commit_by_branch_or_tag(base)
+        compare_commit = self.get_commit_by_branch_or_tag(compare)
+        commits = []
+        parents_hex = []
+        # 从给定提交开始遍历历史记录
+        # print(base_commit.hex, compare_commit.hex)
+        for c in self.repo.walk(compare_commit.oid, pygit2.GIT_SORT_NONE):
+            if c.hex == base_commit.hex:
+                break
+            parents = [c.hex for c in c.parents]
+            data = {
+                'hash': c.hex,
+                'message': c.message,
+                'commit_time': datetime.utcfromtimestamp(
+                    c.commit_time).strftime('%Y-%m-%d %H:%M:%S'),
+                'author_name': c.author.name,
+                'author_email': c.author.email,
+                'parents': parents,
+                'oid': str(c.oid),
+            }
+            if c.hex != compare_commit.hex:
+                if c.hex in parents_hex:
+                    commits.append(data)
+                    parents_hex.extend(parents)
+            else:
+                commits.append(data)
+                parents_hex.extend(parents)
         return {"commits": commits}
 
     def all_tags(self):
@@ -243,6 +273,22 @@ class GitRepo:
             if diff_string:
                 return diff_string
         return ""
+
+    def get_commit_by_branch_or_tag(self, branch_or_tag: str) -> pygit2.Commit:
+        regex = re.compile('^refs/tags/')
+        tags = [r.split('/')[-1] for r in self.repo.references if regex.match(r)]
+        if branch_or_tag in tags:
+            return self.repo.revparse_single(branch_or_tag)
+        else:
+            return self.newest_commit_by_branch(branch_or_tag)
+
+    def compare_diff(self, base: str, compare: str) -> str:
+        # 先判断是 tag 还是 branch, 然后返回对应的 commit
+        base_commit = self.get_commit_by_branch_or_tag(base)
+        compare_commit = self.get_commit_by_branch_or_tag(compare)
+        diff = self.repo.diff(base_commit, compare_commit)
+        diff_string = diff.patch
+        return diff_string
 
 
 if __name__ == "__main__":

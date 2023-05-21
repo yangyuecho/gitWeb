@@ -91,6 +91,19 @@ async def repo_commits(name: str,
     return git_repo.all_commits(commit=commit)
 
 
+@router.get("/{name}/commits/compare/")
+async def repo_commits_compare(name: str,
+                    base: str,
+                    compare: str,
+                    db: Session = Depends(d.get_db),
+                    current_user: models.User = Depends(d.get_current_user_no_must),):
+    repo = RepoService.find_by_unique_name(db, name)
+    if repo is None:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    git_repo = GitRepo(repo.path)
+    return git_repo.compare_commits(base, compare)
+
+
 @router.get("/{name}/branches")
 async def repo_branches(name: str,
                     db: Session = Depends(d.get_db),
@@ -114,7 +127,7 @@ async def repo_branches(name: str,
 
 
 @router.get("/{name}/diff/")
-async def repo_tree(name: str,
+async def commit_diff(name: str,
                     commit: t.Optional[str] = "",
                     path: t.Optional[str] = "",
                     db: Session = Depends(d.get_db),
@@ -128,3 +141,16 @@ async def repo_tree(name: str,
     else:
         commit = git_repo.repo.revparse_single(commit)
     return git_repo.diff_by_commit(commit=commit)
+
+
+@router.get("/{name}/compare/")
+async def compare_diff(name: str,
+                    base: str,
+                    compare: str,
+                    db: Session = Depends(d.get_db),
+                    current_user: models.User = Depends(d.get_current_user_no_must)):
+    repo = RepoService.find_by_unique_name(db, name)
+    if repo is None:
+        raise HTTPException(status_code=404, detail="Repo not found")
+    git_repo = GitRepo(repo.path)
+    return git_repo.compare_diff(base, compare)
